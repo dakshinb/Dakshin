@@ -1,0 +1,156 @@
+---
+title: "Homework 4"
+author: "Dakshin Bharath"
+date: "2024-10-11"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(tidyverse)
+library(lubridate)
+
+```
+
+# Question 1
+```{r}
+# Read the dataset
+taylor_kelce <- read_csv("taylor_kelce.csv")
+# Parse the game date variable
+taylor_kelce <- taylor_kelce %>%
+  mutate(Date = mdy(Date))
+
+# Read the dataset
+taylor_kelce <- read_csv("taylor_kelce.csv")
+
+# Parse the game date variable
+taylor_kelce <- taylor_kelce %>%
+  mutate(Date = mdy(Date))
+
+# Investigate and fix incorrect dates
+taylor_kelce <- taylor_kelce %>%
+  mutate(Date = case_when(
+    Date == as.Date("2029-10-29") ~ as.Date("2023-10-29"),
+    Date == as.Date("2013-01-24") ~ as.Date("2024-01-24"),
+    Date == as.Date("2023-01-07") ~ as.Date("2024-01-07"),
+    is.na(Date) ~ as.Date("2023-12-03"),
+    TRUE ~ Date
+  ))
+
+# Check the dataset
+print(taylor_kelce)
+
+
+```
+
+# Question 2
+
+```{r}
+# Create a table with days of the week, number of games, and proportion of games Taylor attended
+summary_table <- taylor_kelce %>%
+  mutate(DayOfWeek = weekdays(Date)) %>%
+  group_by(DayOfWeek) %>%
+  summarise(
+    NumberOfGames = n(),
+    ProportionTaylorAttended = mean(WasTaylorSwiftatthegame == "Yes", na.rm = TRUE)
+  ) %>%
+  arrange(match(DayOfWeek, c("Sunday", "Monday", "Thursday", "Saturday")))
+
+# Round numbers to 2 decimal places
+summary_table <- summary_table %>%
+  mutate(ProportionTaylorAttended = round(ProportionTaylorAttended, 2))
+
+# Print the table
+print(summary_table)
+
+```
+# Question 3
+```{r}
+# Read the dataset
+concussions <- read_csv("concussions_nfl.csv")
+
+# Parse the date variable
+concussions <- concussions %>%
+  mutate(Date = lubridate::dmy(Date))
+
+# Confirm the date variable only contains dates with years 2012, 2013, or 2014
+unique_years <- unique(lubridate::year(concussions$Date))
+unique_years
+
+# Spread the dataset to get the desired columns
+concussions_wide <- concussions %>%
+  spread(key = Information, value = Value)
+
+# Select the required columns
+concussions_subset <- concussions_wide %>%
+  select(Player, Team, Game, Date, `Opposing Team`, Position, `Pre-Season Injury`, `Winning Team`, `Week of Injury`, `Reported Injury Type`, `Total Snaps`)
+
+# Output the first 10 rows
+head(concussions_subset, 10)
+
+```
+# Question 4
+
+```{r}
+# Create a figure showing the number of concussions in each month
+concussions_by_month <- concussions_subset %>%
+  mutate(Month = month(Date, label = TRUE)) %>%
+  count(Month)
+
+ggplot(concussions_by_month, aes(x = Month, y = n)) +
+  geom_col() +
+  labs(title = "Number of Concussions by Month", x = "Month", y = "Number of Concussions")
+
+# Create a figure showing the number of concussions by position
+concussions_by_position <- concussions_subset %>%
+  count(Position)
+
+ggplot(concussions_by_position, aes(x = reorder(Position, -n), y = n)) +
+  geom_col() +
+  labs(title = "Number of Concussions by Position", x = "Position", y = "Number of Concussions") +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+
+```
+# Question 5
+```{r}
+# Read the dataset
+food_access <- read_csv("Homework4_food.csv")
+
+# Create a subset with the first 3 variables and the 4 columns describing food access among children
+food_access_subset <- food_access %>%
+  select(County, Population, State, LowAccessNumbers_Children_0.5Mile, LowAccessNumbers_Children_1Mile, LowAccessNumbers_Children_10Miles, LowAccessNumbers_Children_20Miles)
+
+# Reshape the subset using pivot_longer
+food_access_long <- food_access_subset %>%
+  pivot_longer(cols = starts_with("LowAccessNumbers_Children"), names_to = "distance", values_to = "pop_count") %>%
+  mutate(distance = case_when(
+    distance == "LowAccessNumbers_Children_0.5Mile" ~ 0.5,
+    distance == "LowAccessNumbers_Children_1Mile" ~ 1,
+    distance == "LowAccessNumbers_Children_10Miles" ~ 10,
+    distance == "LowAccessNumbers_Children_20Miles" ~ 20
+  ))
+
+# Sort the dataset by county and output the first 10 rows
+food_access_long <- food_access_long %>%
+  arrange(County)
+
+head(food_access_long, 10)
+
+```
+# Question 6
+
+```{r}
+# Calculate the mean population count for each distance
+mean_pop_count <- food_access_long %>%
+  group_by(distance) %>%
+  summarize(mean_pop_count = mean(pop_count, na.rm = TRUE))
+
+# Output a nicely formatted table
+knitr::kable(mean_pop_count, col.names = c("Distance (miles)", "Mean Population Count"))
+
+# Interpretation
+"The table above shows the mean population count for each distance, averaged across all counties in the dataset. This provides insight into the average number of children living beyond each specified distance from a grocery store."
+
+```
+
